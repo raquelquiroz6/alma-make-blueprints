@@ -1,0 +1,1027 @@
+{
+  "name": "ALMA — Conversación Principal",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "whatsapp_incoming"
+      },
+      "mapper": {
+        "sender_phone": "{{1.entry[1].changes[1].value.messages[1].from}}",
+        "message_text": "{{1.entry[1].changes[1].value.messages[1].text.body}}",
+        "message_id": "{{1.entry[1].changes[1].value.messages[1].id}}",
+        "timestamp": "{{1.entry[1].changes[1].value.messages[1].timestamp}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "WhatsApp Incoming"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 2,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Usuarias",
+        "maxRows": 1
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 250,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Buscar usuaria"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 500,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "¿Nueva o existente?"
+          }
+        },
+        "expect": []
+      },
+      "routes": [
+        {
+          "name": "Usuaria nueva",
+          "filter": "{{length(2.rows) = 0}}"
+        },
+        {
+          "name": "Usuaria existente",
+          "filter": "{{length(2.rows) > 0}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Usuarias"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "fecha_registro": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}",
+        "onboarding_completo": "FALSE",
+        "status": "trial"
+      },
+      "metadata": {
+        "designer": {
+          "x": 750,
+          "y": -120
+        },
+        "restore": {
+          "parameters": {
+            "name": "Crear usuaria"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 5,
+      "module": "util:SetVariable",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "name": "perfil_usuaria",
+        "value": ""
+      },
+      "metadata": {
+        "designer": {
+          "x": 980,
+          "y": -170
+        },
+        "restore": {
+          "parameters": {
+            "name": "Set perfil_usuaria vacío"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 6,
+      "module": "util:SetVariable",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "name": "es_nueva",
+        "value": "true"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1210,
+          "y": -170
+        },
+        "restore": {
+          "parameters": {
+            "name": "Set es_nueva true"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 7,
+      "module": "util:SetVariable",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "name": "perfil_usuaria",
+        "value": "Nombre: {{2.rows[1].nombre}} | Hijos: {{2.rows[1].hijos}} | Pareja: {{2.rows[1].pareja}} | Ciudad: {{2.rows[1].ciudad}} | Horario: {{2.rows[1].horario_trabajo}} | Contexto: {{2.rows[1].contexto_personal}} | Onboarding: {{2.rows[1].onboarding_completo}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 750,
+          "y": 120
+        },
+        "restore": {
+          "parameters": {
+            "name": "Set perfil_usuaria desde fila"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 8,
+      "module": "util:SetVariable",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "name": "es_nueva",
+        "value": "false"
+      },
+      "metadata": {
+        "designer": {
+          "x": 980,
+          "y": 120
+        },
+        "restore": {
+          "parameters": {
+            "name": "Set es_nueva false"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 9,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Historial",
+        "maxRows": 20
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          }
+        ],
+        "sort": [
+          {
+            "column": "timestamp",
+            "direction": "desc"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1450,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Historial reciente"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 10,
+      "module": "util:FunctionAggregator",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "function": "{{join(map(reverse(9.rows); format(\"[%s]: %s\\n\"; get(item; \"rol\"); get(item; \"mensaje\"))); \"\")}}",
+        "output_variable": "historial_texto"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1700,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Armar historial"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 11,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Eventos",
+        "maxRows": 20
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          },
+          {
+            "column": "fecha",
+            "operator": "text:equal",
+            "value": "{{formatDate(now; \"YYYY-MM-DD\")}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1950,
+          "y": -180
+        },
+        "restore": {
+          "parameters": {
+            "name": "Eventos de hoy"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 12,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes",
+        "maxRows": 20
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          },
+          {
+            "column": "status",
+            "operator": "text:equal",
+            "value": "pendiente"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1950,
+          "y": -60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Pendientes activos"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 13,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Gastos",
+        "maxRows": 50
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          },
+          {
+            "column": "fecha",
+            "operator": "date:after_or_equal",
+            "value": "{{formatDate(startOfMonth(now); \"YYYY-MM-DD\")}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1950,
+          "y": 60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Gastos del mes"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 14,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Listas",
+        "maxRows": 10
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1950,
+          "y": 180
+        },
+        "restore": {
+          "parameters": {
+            "name": "Listas activas"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 15,
+      "module": "openai-gpt-4:CreateChatCompletion",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "model": "gpt-4o-mini",
+        "response_format": "json_object",
+        "temperature": 0.7,
+        "max_tokens": 1200,
+        "messages": [
+          {
+            "role": "system",
+            "content": "Eres ALMA (Asistente Leal para Mujeres Activas), una asistente personal por WhatsApp diseñada para mujeres mayores de 35 años que trabajan, tienen familia y viven en ciudades mexicanas.\n\n## TU PERSONALIDAD\n\n- Eres cálida, empática y genuina. Como una amiga confiable que siempre está ahí.\n- Hablas en español mexicano natural, sin ser informal en exceso.\n- Usas emojis con moderación (1-2 por mensaje máximo).\n- Eres breve y directa. Mensajes cortos, claros, útiles.\n- Nunca suenas como bot. Nunca dices \"como asistente de IA\" ni nada similar.\n- Tratas a la usuaria por su nombre cuando lo sabes.\n- Celebras sus logros pequeños: \"¡Listo, ya quedó agendado!\" / \"¡Otro pendiente menos! 💪\"\n\n## TU FUNCIÓN\n\nAyudas a organizar su vida diaria a través de estos módulos:\n\n1. AGENDA — Crear eventos, recordatorios, fechas importantes\n2. PENDIENTES — Listas de tareas, seguimiento de trámites, pagos por vencer\n3. GASTOS — Registro de gastos, categorización automática, alertas de presupuesto\n4. LISTAS — Listas de compras y cualquier otra lista\n5. BIENESTAR — Check-ins emocionales, tips de autocuidado, motivación, micro-pausas\n6. SOLUCIONES — Ideas de comidas/loncheras, ayuda con tareas escolares, recomendaciones, comparativas\n7. COORDINACIÓN FAMILIAR — Enviar mensajes a contactos de la usuaria (esposo, hijos, etc.)\n\n## ONBOARDING (si ES_NUEVA = true)\n\nSi la usuaria es nueva, dale la bienvenida y haz el onboarding conversacional. Pregunta UNA cosa a la vez en este orden:\n\n1. \"¡Hola! Soy ALMA, tu asistente personal por WhatsApp 💜 ¿Cómo te llamas?\"\n2. \"¡Mucho gusto, [nombre]! ¿Tienes hijos? Cuéntame sus nombres y edades para conocerlos.\"\n3. \"¿Tienes pareja? ¿Cómo se llama?\"\n4. \"¿En qué ciudad vives?\"\n5. \"¿Cuál es tu horario de trabajo aproximado?\"\n6. \"¡Perfecto! Ya te conozco un poco mejor. Puedes pedirme lo que necesites: agendar citas, hacer listas, registrar gastos, ideas de comida, o simplemente platicar. ¿En qué te ayudo primero? 💜\"\n\nCada respuesta del onboarding genera accion: \"perfil\" con los datos correspondientes.\n\nCuando termines las preguntas, incluye en datos: {\"onboarding_completo\": true}\n\n## RESPUESTA OBLIGATORIA EN JSON\n\nSIEMPRE responde en este formato JSON exacto:\n\n{\n\"respuesta\": \"[tu mensaje para la usuaria]\",\n\"accion\": \"[agenda|pendiente|gasto|lista|perfil|conversacion|coordinacion|completar_pendiente]\",\n\"datos\": { ... }\n}\n\n### Estructura de \"datos\" según acción:\n\n**agenda:**\n\n{\"titulo\": \"...\", \"fecha\": \"YYYY-MM-DD\", \"hora\": \"HH:MM\", \"recurrente\": \"no|diario|semanal|mensual|anual\"}\n\n**pendiente:**\n\n{\"descripcion\": \"...\", \"categoria\": \"hogar|trámite|personal|compras|pago\", \"fecha_limite\": \"YYYY-MM-DD o null\"}\n\n**gasto:**\n\n{\"monto\": 000, \"categoria\": \"súper|gasolina|comida_fuera|salud|educación|hogar|transporte|servicios|otro\", \"descripcion\": \"...\", \"fecha\": \"YYYY-MM-DD\"}\n\n**lista:**\n\n{\"nombre_lista\": \"...\", \"accion_lista\": \"agregar|eliminar|mostrar|nueva|vaciar\", \"items\": \"item1, item2, item3\"}\n\n**perfil:**\n\n{\"campo\": \"valor\", ...}\n\nCampos válidos: nombre, hijos, pareja, ciudad, horario_trabajo, contexto_personal, onboarding_completo\n\n**coordinacion:**\n\n{\"contacto_nombre\": \"...\", \"mensaje\": \"...\", \"registrar_contacto\": true/false, \"telefono_contacto\": \"...\", \"relacion\": \"esposo|hijo|mamá|amiga|otro\"}\n\nSi registrar_contacto es true, se guarda el contacto en la hoja Contactos.\n\nSi ALMA no tiene el teléfono del contacto, debe pedírselo a la usuaria antes de enviar.\n\n**completar_pendiente:**\n\n{\"descripcion_parcial\": \"...\", \"nuevo_status\": \"completado\"}\n\nALMA busca el pendiente por coincidencia parcial de descripción y lo marca como completado.\n\n**conversacion:**\n\n{}\n\n(sin datos adicionales, solo la respuesta conversacional)\n\n## REGLAS IMPORTANTES\n\n- Si la usuaria menciona una fecha relativa (\"mañana\", \"el viernes\", \"la próxima semana\"), calcula la fecha real usando la FECHA Y HORA ACTUAL proporcionada.\n- Si falta información para completar una acción, PREGUNTA lo que falta. No inventes datos. Acción = \"conversacion\".\n- Si la usuaria pregunta algo que no tiene que ver con tus módulos, responde con naturalidad como una amiga informada. Acción = \"conversacion\".\n- Si detectas información personal nueva, actualiza el perfil con accion: \"perfil\" y agrega al campo contexto_personal.\n- Cuando la usuaria diga que completó algo (\"ya llamé al plomero\", \"listo lo del súper\"), usa accion: \"completar_pendiente\".\n- Cuando la usuaria pida ver sus pendientes, su lista o sus gastos, usa accion: \"conversacion\" y responde con lo que sabes del contexto inyectado.\n- Si la usuaria dice \"estoy estresada\" o similar, ofrece una micro-pausa (ejercicio de respiración de 2 min).\n- Si la usuaria pide enviar un mensaje a alguien (\"dile a mi esposo...\"), usa accion: \"coordinacion\". Si no tienes el teléfono del contacto registrado, pídelo primero."
+          },
+          {
+            "role": "user",
+            "content": "PERFIL DE LA USUARIA:\n{{getVariable(\"perfil_usuaria\")}}\n\nES NUEVA: {{getVariable(\"es_nueva\")}}\n\nHISTORIAL RECIENTE (últimos mensajes):\n{{10.output_variable}}\n\nEVENTOS DE HOY:\n{{toJSON(11.rows)}}\n\nPENDIENTES ACTIVOS:\n{{toJSON(12.rows)}}\n\nGASTOS DEL MES:\n{{toJSON(13.rows)}}\n\nLISTAS ACTIVAS:\n{{toJSON(14.rows)}}\n\nMENSAJE ACTUAL DE LA USUARIA:\n{{1.message_text}}\n\nFECHA Y HORA ACTUAL:\n{{formatDate(now; \"YYYY-MM-DD HH:mm\"; \"America/Mexico_City\")}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2250,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Generar respuesta ALMA"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 16,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{15.choices[1].message.content}}",
+        "dataStructure": {
+          "respuesta": "text",
+          "accion": "text",
+          "datos": "collection"
+        }
+      },
+      "metadata": {
+        "designer": {
+          "x": 2500,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Parse JSON respuesta"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 17,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Historial"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "timestamp": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}",
+        "rol": "user",
+        "mensaje": "{{1.message_text}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2750,
+          "y": -80
+        },
+        "restore": {
+          "parameters": {
+            "name": "Guardar user en historial"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 18,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Historial"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "timestamp": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}",
+        "rol": "assistant",
+        "mensaje": "{{16.respuesta}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2750,
+          "y": 80
+        },
+        "restore": {
+          "parameters": {
+            "name": "Guardar assistant en historial"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 19,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Acción por intención"
+          }
+        },
+        "expect": []
+      },
+      "routes": [
+        {
+          "name": "agenda",
+          "filter": "{{16.accion = \"agenda\"}}"
+        },
+        {
+          "name": "pendiente",
+          "filter": "{{16.accion = \"pendiente\"}}"
+        },
+        {
+          "name": "gasto",
+          "filter": "{{16.accion = \"gasto\"}}"
+        },
+        {
+          "name": "lista",
+          "filter": "{{16.accion = \"lista\"}}"
+        },
+        {
+          "name": "perfil",
+          "filter": "{{16.accion = \"perfil\"}}"
+        },
+        {
+          "name": "completar_pendiente",
+          "filter": "{{16.accion = \"completar_pendiente\"}}"
+        },
+        {
+          "name": "coordinacion",
+          "filter": "{{16.accion = \"coordinacion\"}}"
+        },
+        {
+          "name": "conversacion",
+          "filter": "{{true}}"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Eventos"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "titulo": "{{16.datos.titulo}}",
+        "fecha": "{{16.datos.fecha}}",
+        "hora": "{{16.datos.hora}}",
+        "recurrente": "{{16.datos.recurrente}}",
+        "recordatorio_enviado": "FALSE",
+        "creado_en": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": -420
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta agenda: crear evento"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 21,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "descripcion": "{{16.datos.descripcion}}",
+        "categoria": "{{16.datos.categoria}}",
+        "status": "pendiente",
+        "fecha_limite": "{{16.datos.fecha_limite}}",
+        "creado_en": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": -300
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta pendiente: crear pendiente"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 22,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Gastos"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "monto": "{{16.datos.monto}}",
+        "categoria": "{{16.datos.categoria}}",
+        "descripcion": "{{16.datos.descripcion}}",
+        "fecha": "{{16.datos.fecha}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": -180
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta gasto: crear gasto"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 23,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Listas",
+        "maxRows": 1
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          },
+          {
+            "column": "nombre_lista",
+            "operator": "text:equal",
+            "value": "{{16.datos.nombre_lista}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": -60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta lista: buscar lista"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 24,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 3500,
+          "y": -60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Subruta lista existe/no existe"
+          }
+        },
+        "expect": []
+      },
+      "routes": [
+        {
+          "name": "Existe",
+          "filter": "{{length(23.rows) > 0}}"
+        },
+        {
+          "name": "No existe",
+          "filter": "{{length(23.rows) = 0}}"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "module": "google-sheets:updateRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Listas",
+        "rowNumber": "{{23.rows[1].__rowNumber}}"
+      },
+      "mapper": {
+        "items": "{{16.datos.items}}",
+        "actualizado_en": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3750,
+          "y": -120
+        },
+        "restore": {
+          "parameters": {
+            "name": "Actualizar lista existente"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 26,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Listas"
+      },
+      "mapper": {
+        "telefono": "{{1.sender_phone}}",
+        "nombre_lista": "{{16.datos.nombre_lista}}",
+        "items": "{{16.datos.items}}",
+        "actualizado_en": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3750,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Crear nueva lista"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 27,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Usuarias",
+        "maxRows": 1
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": 60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta perfil: buscar usuaria"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 28,
+      "module": "google-sheets:updateRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Usuarias",
+        "rowNumber": "{{27.rows[1].__rowNumber}}"
+      },
+      "mapper": {
+        "nombre": "{{16.datos.nombre}}",
+        "hijos": "{{16.datos.hijos}}",
+        "pareja": "{{16.datos.pareja}}",
+        "ciudad": "{{16.datos.ciudad}}",
+        "horario_trabajo": "{{16.datos.horario_trabajo}}",
+        "contexto_personal": "{{16.datos.contexto_personal}}",
+        "onboarding_completo": "{{16.datos.onboarding_completo}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3500,
+          "y": 60
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta perfil: actualizar campos"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 29,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes",
+        "maxRows": 1
+      },
+      "mapper": {
+        "filter": [
+          {
+            "column": "telefono",
+            "operator": "text:equal",
+            "value": "{{1.sender_phone}}"
+          },
+          {
+            "column": "descripcion",
+            "operator": "text:contains",
+            "value": "{{16.datos.descripcion_parcial}}"
+          },
+          {
+            "column": "status",
+            "operator": "text:equal",
+            "value": "pendiente"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": 180
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta completar: buscar pendiente"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 30,
+      "module": "google-sheets:updateRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes",
+        "rowNumber": "{{29.rows[1].__rowNumber}}"
+      },
+      "mapper": {
+        "status": "completado"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3500,
+          "y": 180
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta completar: marcar completado"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 31,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 3250,
+          "y": 300
+        },
+        "restore": {
+          "parameters": {
+            "name": "Subruta coordinación registrar contacto"
+          }
+        },
+        "expect": []
+      },
+      "routes": [
+        {
+          "name": "Registrar contacto",
+          "filter": "{{16.datos.registrar_contacto = true}}"
+        },
+        {
+          "name": "Sin registro",
+          "filter": "{{true}}"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Contactos"
+      },
+      "mapper": {
+        "telefono_usuaria": "{{1.sender_phone}}",
+        "nombre_contacto": "{{16.datos.contacto_nombre}}",
+        "telefono_contacto": "{{16.datos.telefono_contacto}}",
+        "relacion": "{{16.datos.relacion}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3500,
+          "y": 260
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta coordinación: guardar contacto"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 33,
+      "module": "http:ActionSendData",
+      "version": 1,
+      "parameters": {
+        "url": "https://graph.facebook.com/v21.0/PHONE_NUMBER_ID/messages",
+        "method": "post"
+      },
+      "mapper": {
+        "headers": {
+          "Authorization": "Bearer ACCESS_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": "{\"messaging_product\":\"whatsapp\",\"to\":\"{{16.datos.telefono_contacto}}\",\"type\":\"text\",\"text\":{\"body\":\"{{16.datos.mensaje}}\"}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3750,
+          "y": 320
+        },
+        "restore": {
+          "parameters": {
+            "name": "Ruta coordinación: WhatsApp a contacto"
+          }
+        },
+        "expect": []
+      }
+    },
+    {
+      "id": 34,
+      "module": "http:ActionSendData",
+      "version": 1,
+      "parameters": {
+        "url": "https://graph.facebook.com/v21.0/PHONE_NUMBER_ID/messages",
+        "method": "post"
+      },
+      "mapper": {
+        "headers": {
+          "Authorization": "Bearer ACCESS_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": "{\"messaging_product\":\"whatsapp\",\"to\":\"{{1.sender_phone}}\",\"type\":\"text\",\"text\":{\"body\":\"{{16.respuesta}}\"}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 4200,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "name": "Enviar respuesta WhatsApp usuaria"
+          }
+        },
+        "expect": []
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false
+    }
+  }
+}
