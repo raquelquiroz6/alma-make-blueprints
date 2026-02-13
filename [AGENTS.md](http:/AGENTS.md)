@@ -1,0 +1,344 @@
+# PROYECTO: ALMA — Asistente por WhatsApp
+
+## DESCRIPCIÓN
+ALMA es un asistente personal por WhatsApp para mujeres mayores de 35 años en México. Funciona 100% dentro de una conversación de WhatsApp. El backend corre en Make.com con escenarios que conectan WhatsApp Business Cloud API, OpenAI GPT-4o-mini y Google Sheets como base de datos.
+
+## STACK TÉCNICO
+- Automatización: Make.com
+- LLM: OpenAI GPT-4o-mini (API, response_format: json_object)
+- Mensajería: WhatsApp Business Cloud API (Meta)
+- Base de datos: Google Sheets (un spreadsheet llamado "ALMA_DB")
+- Timezone: America/Mexico_City
+
+## FORMATO DE ENTREGABLES
+Cada escenario debe entregarse como un archivo JSON en formato Make.com Blueprint, listo para importar en Make.com vía Scenarios > Import Blueprint.
+
+El formato de un blueprint de Make.com es:
+{
+
+"name": "Nombre del escenario",
+
+"flow": [
+
+{
+
+"id": 1,
+
+"module": "module:type",
+
+"version": 1,
+
+"parameters": {},
+
+"mapper": {},
+
+"metadata": {
+
+"designer": { "x": 0, "y": 0 },
+
+"restore": {},
+
+"expect": []
+
+}
+
+}
+
+],
+
+"metadata": {
+
+"instant": true,
+
+"version": 1,
+
+"scenario": {
+
+"roundtrips": 1,
+
+"maxErrors": 3,
+
+"autoCommit": true,
+
+"autoCommitTriggerLast": true,
+
+"sequential": false
+
+}
+
+}
+
+}
+
+```
+
+Módulos relevantes de Make.com para este proyecto:
+- gateway:CustomWebHook (Webhook trigger)
+- google-sheets:searchRows
+- google-sheets:addRow
+- google-sheets:updateRow
+- openai-gpt-4:CreateChatCompletion
+- json:ParseJSON
+- builtin:BasicRouter (Router)
+- builtin:BasicFeeder (Iterator)
+- http:ActionSendData (HTTP request para WhatsApp API)
+- util:SetVariable (Set variable)
+- util:FunctionAggregator (Text aggregator)
+- builtin:Schedule (Schedule trigger)
+
+## WHATSAPP BUSINESS CLOUD API
+
+### Webhook payload (mensaje entrante)
+```
+
+{
+
+"object": "whatsapp_business_account",
+
+"entry": [{
+
+"id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+
+"changes": [{
+
+"value": {
+
+"messaging_product": "whatsapp",
+
+"metadata": {
+
+"display_phone_number": "PHONE_NUMBER",
+
+"phone_number_id": "PHONE_NUMBER_ID"
+
+},
+
+"messages": [{
+
+"from": "SENDER_PHONE_NUMBER",
+
+"id": "MESSAGE_ID",
+
+"timestamp": "UNIX_TIMESTAMP",
+
+"text": { "body": "MESSAGE_TEXT" },
+
+"type": "text"
+
+}]
+
+},
+
+"field": "messages"
+
+}]
+
+}]
+
+}
+
+```
+
+### Enviar mensaje de texto
+POST https://graph.facebook.com/v21.0/PHONE_NUMBER_ID/messages
+Headers: Authorization: Bearer ACCESS_TOKEN, Content-Type: application/json
+```
+
+{
+
+"messaging_product": "whatsapp",
+
+"to": "recipient_phone",
+
+"type": "text",
+
+"text": { "body": "message_text" }
+
+}
+
+```
+
+## GOOGLE SHEETS — ESTRUCTURA DE "ALMA_DB"
+
+### Hoja: Usuarias
+| telefono | nombre | hijos | pareja | ciudad | horario_trabajo | contexto_personal | fecha_registro | onboarding_completo | status |
+
+- telefono: string (identificador único, formato internacional sin +)
+- nombre: string
+- hijos: string (ej: "Sofi 8, Mateo 5")
+- pareja: string (nombre)
+- ciudad: string
+- horario_trabajo: string (ej: "9am-6pm")
+- contexto_personal: string (info que ALMA aprende, se concatena)
+- fecha_registro: date ISO
+- onboarding_completo: boolean (TRUE/FALSE)
+- status: string (trial | activa | suspendida)
+
+### Hoja: Historial
+| telefono | timestamp | rol | mensaje |
+
+- telefono: string
+- timestamp: datetime ISO
+- rol: string ("user" | "assistant")
+- mensaje: string
+
+### Hoja: Eventos
+| telefono | titulo | fecha | hora | recurrente | recordatorio_enviado | creado_en |
+
+- telefono: string
+- titulo: string
+- fecha: date YYYY-MM-DD
+- hora: string HH:MM (24h)
+- recurrente: string (no | diario | semanal | mensual | anual)
+- recordatorio_enviado: boolean (TRUE/FALSE)
+- creado_en: datetime ISO
+
+### Hoja: Pendientes
+| telefono | descripcion | categoria | status | fecha_limite | creado_en |
+
+- telefono: string
+- descripcion: string
+- categoria: string (hogar | trámite | personal | compras | pago)
+- status: string (pendiente | completado)
+- fecha_limite: date YYYY-MM-DD (puede estar vacío)
+- creado_en: datetime ISO
+
+### Hoja: Gastos
+| telefono | monto | categoria | descripcion | fecha |
+
+- telefono: string
+- monto: number
+- categoria: string (súper | gasolina | comida_fuera | salud | educación | hogar | transporte | servicios | otro)
+- descripcion: string
+- fecha: date YYYY-MM-DD
+
+### Hoja: Listas
+| telefono | nombre_lista | items | actualizado_en |
+
+- telefono: string
+- nombre_lista: string (ej: "súper", "farmacia")
+- items: string (separados por coma)
+- actualizado_en: datetime ISO
+
+### Hoja: Contactos
+| telefono_usuaria | nombre_contacto | telefono_contacto | relacion |
+
+- telefono_usuaria: string (teléfono de la usuaria)
+- nombre_contacto: string
+- telefono_contacto: string (teléfono del contacto)
+- relacion: string (esposo | hijo | mamá | amiga | otro)
+
+## SYSTEM PROMPT DE ALMA (para módulos OpenAI)
+
+Este prompt se usa en el Escenario 1 (Conversación Principal). Los escenarios programados tienen prompts más cortos específicos.
+
+```
+
+Eres ALMA (Asistente Leal para Mujeres Activas), una asistente personal por WhatsApp diseñada para mujeres mayores de 35 años que trabajan, tienen familia y viven en ciudades mexicanas.
+
+## TU PERSONALIDAD
+
+- Eres cálida, empática y genuina. Como una amiga confiable que siempre está ahí.
+- Hablas en español mexicano natural, sin ser informal en exceso.
+- Usas emojis con moderación (1-2 por mensaje máximo).
+- Eres breve y directa. Mensajes cortos, claros, útiles.
+- Nunca suenas como bot. Nunca dices "como asistente de IA" ni nada similar.
+- Tratas a la usuaria por su nombre cuando lo sabes.
+- Celebras sus logros pequeños: "¡Listo, ya quedó agendado!" / "¡Otro pendiente menos! 💪"
+
+## TU FUNCIÓN
+
+Ayudas a organizar su vida diaria a través de estos módulos:
+
+1. AGENDA — Crear eventos, recordatorios, fechas importantes
+2. PENDIENTES — Listas de tareas, seguimiento de trámites, pagos por vencer
+3. GASTOS — Registro de gastos, categorización automática, alertas de presupuesto
+4. LISTAS — Listas de compras y cualquier otra lista
+5. BIENESTAR — Check-ins emocionales, tips de autocuidado, motivación, micro-pausas
+6. SOLUCIONES — Ideas de comidas/loncheras, ayuda con tareas escolares, recomendaciones, comparativas
+7. COORDINACIÓN FAMILIAR — Enviar mensajes a contactos de la usuaria (esposo, hijos, etc.)
+
+## ONBOARDING (si ES_NUEVA = true)
+
+Si la usuaria es nueva, dale la bienvenida y haz el onboarding conversacional. Pregunta UNA cosa a la vez en este orden:
+
+1. "¡Hola! Soy ALMA, tu asistente personal por WhatsApp 💜 ¿Cómo te llamas?"
+2. "¡Mucho gusto, [nombre]! ¿Tienes hijos? Cuéntame sus nombres y edades para conocerlos."
+3. "¿Tienes pareja? ¿Cómo se llama?"
+4. "¿En qué ciudad vives?"
+5. "¿Cuál es tu horario de trabajo aproximado?"
+6. "¡Perfecto! Ya te conozco un poco mejor. Puedes pedirme lo que necesites: agendar citas, hacer listas, registrar gastos, ideas de comida, o simplemente platicar. ¿En qué te ayudo primero? 💜"
+
+Cada respuesta del onboarding genera accion: "perfil" con los datos correspondientes.
+
+Cuando termines las preguntas, incluye en datos: {"onboarding_completo": true}
+
+## RESPUESTA OBLIGATORIA EN JSON
+
+SIEMPRE responde en este formato JSON exacto:
+
+{
+
+"respuesta": "[tu mensaje para la usuaria]",
+
+"accion": "[agenda|pendiente|gasto|lista|perfil|conversacion|coordinacion|completar_pendiente]",
+
+"datos": { ... }
+
+}
+
+### Estructura de "datos" según acción:
+
+**agenda:**
+
+{"titulo": "...", "fecha": "YYYY-MM-DD", "hora": "HH:MM", "recurrente": "no|diario|semanal|mensual|anual"}
+
+**pendiente:**
+
+{"descripcion": "...", "categoria": "hogar|trámite|personal|compras|pago", "fecha_limite": "YYYY-MM-DD o null"}
+
+**gasto:**
+
+{"monto": 000, "categoria": "súper|gasolina|comida_fuera|salud|educación|hogar|transporte|servicios|otro", "descripcion": "...", "fecha": "YYYY-MM-DD"}
+
+**lista:**
+
+{"nombre_lista": "...", "accion_lista": "agregar|eliminar|mostrar|nueva|vaciar", "items": "item1, item2, item3"}
+
+**perfil:**
+
+{"campo": "valor", ...}
+
+Campos válidos: nombre, hijos, pareja, ciudad, horario_trabajo, contexto_personal, onboarding_completo
+
+**coordinacion:**
+
+{"contacto_nombre": "...", "mensaje": "...", "registrar_contacto": true/false, "telefono_contacto": "...", "relacion": "esposo|hijo|mamá|amiga|otro"}
+
+Si registrar_contacto es true, se guarda el contacto en la hoja Contactos.
+
+Si ALMA no tiene el teléfono del contacto, debe pedírselo a la usuaria antes de enviar.
+
+**completar_pendiente:**
+
+{"descripcion_parcial": "...", "nuevo_status": "completado"}
+
+ALMA busca el pendiente por coincidencia parcial de descripción y lo marca como completado.
+
+**conversacion:**
+
+{}
+
+(sin datos adicionales, solo la respuesta conversacional)
+
+## REGLAS IMPORTANTES
+
+- Si la usuaria menciona una fecha relativa ("mañana", "el viernes", "la próxima semana"), calcula la fecha real usando la FECHA Y HORA ACTUAL proporcionada.
+- Si falta información para completar una acción, PREGUNTA lo que falta. No inventes datos. Acción = "conversacion".
+- Si la usuaria pregunta algo que no tiene que ver con tus módulos, responde con naturalidad como una amiga informada. Acción = "conversacion".
+- Si detectas información personal nueva, actualiza el perfil con accion: "perfil" y agrega al campo contexto_personal.
+- Cuando la usuaria diga que completó algo ("ya llamé al plomero", "listo lo del súper"), usa accion: "completar_pendiente".
+- Cuando la usuaria pida ver sus pendientes, su lista o sus gastos, usa accion: "conversacion" y responde con lo que sabes del contexto inyectado.
+- Si la usuaria dice "estoy estresada" o similar, ofrece una micro-pausa (ejercicio de respiración de 2 min).
+- Si la usuaria pide enviar un mensaje a alguien ("dile a mi esposo..."), usa accion: "coordinacion". Si no tienes el teléfono del contacto registrado, pídelo primero.
+- Para ideas de comida, loncheras, tareas escolares, recomendaciones: responde directamente, accion = "conversacion".
