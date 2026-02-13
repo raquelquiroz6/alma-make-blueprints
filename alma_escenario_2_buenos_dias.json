@@ -1,0 +1,217 @@
+{
+  "name": "ALMA — Buenos Días",
+  "flow": [
+    {
+      "id": 1,
+      "module": "builtin:Schedule",
+      "version": 1,
+      "parameters": {
+        "type": "daily",
+        "at": "07:00",
+        "timezone": "America/Mexico_City"
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 2,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Usuarias",
+        "tableContainsHeaders": true
+      },
+      "mapper": {
+        "limit": 500,
+        "filter": "onboarding_completo = TRUE AND status != 'suspendida'"
+      },
+      "metadata": {
+        "designer": {
+          "x": 220,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{2[]}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 430,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 4,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Eventos",
+        "tableContainsHeaders": true
+      },
+      "mapper": {
+        "limit": 20,
+        "orderBy": "hora asc",
+        "filter": "telefono = '{{3.telefono}}' AND fecha = '{{formatDate(now; \"YYYY-MM-DD\")}}'"
+      },
+      "metadata": {
+        "designer": {
+          "x": 650,
+          "y": -120
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 5,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes",
+        "tableContainsHeaders": true
+      },
+      "mapper": {
+        "limit": 20,
+        "filter": "telefono = '{{3.telefono}}' AND status = 'pendiente'"
+      },
+      "metadata": {
+        "designer": {
+          "x": 650,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 6,
+      "module": "google-sheets:searchRows",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Pendientes",
+        "tableContainsHeaders": true
+      },
+      "mapper": {
+        "limit": 20,
+        "filter": "telefono = '{{3.telefono}}' AND categoria = 'pago' AND fecha_limite <= '{{formatDate(addDays(now; 3); \"YYYY-MM-DD\")}}' AND status = 'pendiente'"
+      },
+      "metadata": {
+        "designer": {
+          "x": 650,
+          "y": 120
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 7,
+      "module": "openai-gpt-4:CreateChatCompletion",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.8,
+        "max_tokens": 500,
+        "messages": [
+          {
+            "role": "system",
+            "content": "Eres ALMA, la asistente personal de {{3.nombre}}. Genera un mensaje de buenos días cálido y breve.\\n\\nREGLAS:\\n- Saluda con su nombre\\n- Lista los eventos del día (si hay) con hora\\n- Menciona los pendientes más importantes (máximo 3)\\n- Si hay pagos próximos (próximos 3 días), recuérdalo\\n- Cierra con algo motivador o una pregunta suave\\n- Tono: amiga cercana, cálida, sin ser empalagosa\\n- Usa máximo 2 emojis\\n- Máximo 200 palabras\\n- Responde SOLO el texto del mensaje, sin JSON"
+          },
+          {
+            "role": "user",
+            "content": "Eventos de hoy:\\n{{if(length(4[]) > 0; join(map(4[]; concat(item.hora; \" - \"; item.titulo)); \"\\n\"); \"No tienes eventos hoy\")}}\\n\\nPendientes activos:\\n{{if(length(5[]) > 0; join(map(slice(5[]; 0; 3); concat(\"- \"; item.descripcion)); \"\\n\"); \"No tienes pendientes\")}}\\n\\nPagos próximos:\\n{{if(length(6[]) > 0; join(map(6[]; concat(\"- \"; item.descripcion; \" (vence \"; item.fecha_limite; \")\")); \"\\n\"); \"No hay pagos próximos\")}}\\n\\nContexto personal: {{3.contexto_personal}}\\nDía: {{formatDate(now; \"dddd D [de] MMMM [de] YYYY\"; \"es\")}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 910,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:ActionSendData",
+      "version": 1,
+      "parameters": {
+        "url": "https://graph.facebook.com/v21.0/PHONE_NUMBER_ID/messages",
+        "method": "post",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer ACCESS_TOKEN"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "mapper": {
+        "body": "{\"messaging_product\":\"whatsapp\",\"to\":\"{{3.telefono}}\",\"type\":\"text\",\"text\":{\"body\":\"{{7.choices[1].message.content}}\"}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1160,
+          "y": 0
+        },
+        "restore": {}
+      }
+    },
+    {
+      "id": 9,
+      "module": "google-sheets:addRow",
+      "version": 1,
+      "parameters": {
+        "spreadsheetId": "SPREADSHEET_ID",
+        "sheetName": "Historial",
+        "tableContainsHeaders": true
+      },
+      "mapper": {
+        "values": {
+          "telefono": "{{3.telefono}}",
+          "timestamp": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}",
+          "rol": "assistant",
+          "mensaje": "{{7.choices[1].message.content}}"
+        }
+      },
+      "metadata": {
+        "designer": {
+          "x": 1390,
+          "y": 0
+        },
+        "restore": {}
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false
+    }
+  }
+}
